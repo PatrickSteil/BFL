@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include <concepts>
 #include <cassert>
+#include <concepts>
 #include <vector>
 
 // Class that tracks whether a vertex has been seen using a generational

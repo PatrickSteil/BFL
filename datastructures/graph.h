@@ -16,8 +16,8 @@
 #include <string>
 #include <vector>
 
-#include "types.h"
 #include "status_log.h"
+#include "types.h"
 
 struct Graph {
   std::vector<std::vector<Vertex>> edges;

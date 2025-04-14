@@ -50,6 +50,27 @@ struct BFL {
     }
   }
 
+  void printMemoryConsumption() const {
+    std::size_t numVertices = graphs[FWD]->numVertices();
+
+    std::size_t labelsMemory = 2 * numVertices * sizeof(std::bitset<S_MAX>);
+
+    std::size_t timesMemory = numVertices * sizeof(std::uint32_t) * 2;
+
+    std::size_t totalMemory = labelsMemory + timesMemory;
+
+    std::cout << "Memory Consumption:\n";
+    std::cout << "  Labels memory: "
+              << static_cast<double>(labelsMemory / (1024.0 * 1024.0))
+              << " mb\n";
+    std::cout << "  Discovery/Finish times memory: "
+              << static_cast<double>(timesMemory / (1024.0 * 1024.0))
+              << " mb\n";
+    std::cout << "  Total memory: "
+              << static_cast<double>(totalMemory / (1024.0 * 1024.0))
+              << " mb\n";
+  }
+
   // Wrapper to reset index before DFS usage
   void resetStack() {
     index = 0;
@@ -137,84 +158,32 @@ struct BFL {
     }
   }
 
-  bool queryIter(const Vertex from, const Vertex to) {
-    assert(graphs[FWD]->isVertex(from));
-    assert(graphs[FWD]->isVertex(to));
-
-    if (from == to) [[unlikely]]
-      return true;
-
-    visited.reset();
-    resetStack();
-
-    stack[index++] = from;
-    visited.mark(from);
-
-    const auto& targetFWDLabels = labels[FWD][to];
-    const auto& targetBWDLabels = labels[BWD][to];
-    const auto targetDiscovered = discoveredTime[to];
-    const auto targetFinished = finishedTime[to];
-
-    while (index > 0) {
-      assert(index < stack.size());
-      Vertex curr = stack[--index];
-
-      if (discoveredTime[curr] <= targetDiscovered &&
-          targetFinished <= finishedTime[curr]) {
-        return true;
-      }
-
-      if ((targetFWDLabels & ~labels[FWD][curr]).any() ||
-          (labels[BWD][curr] & ~targetBWDLabels).any()) {
-        continue;
-      }
-
-      for (const Vertex w : graphs[FWD]->edges[curr]) {
-        if (!visited.isMarked(w)) {
-          visited.mark(w);
-          stack[index++] = w;
-        }
-      }
+  void exportData(const std::string& filename) const {
+    std::ofstream outFile(filename);
+    if (!outFile.is_open()) {
+      std::cerr << "Error: Could not open file " << filename
+                << " for writing.\n";
+      return;
     }
-    return false;
+
+    outFile
+        << "Vertex,DiscoveredTime,FinishedTime,ForwardLabel,BackwardLabel\n";
+
+    const std::size_t numVertices = graphs[FWD]->numVertices();
+    for (Vertex v = 0; v < numVertices; ++v) {
+      outFile << v << "," << discoveredTime[v] << "," << finishedTime[v] << ","
+              << labels[FWD][v] << "," << labels[BWD][v] << "\n";
+    }
+
+    outFile.close();
+    std::cout << "Data successfully exported to " << filename << "\n";
   }
 
-  bool query(const Vertex from, const Vertex to) {
-    assert(graphs[FWD]->isVertex(from));
-    assert(graphs[FWD]->isVertex(to));
+  // Query stuff
 
-    if (from == to) [[unlikely]]
-      return true;
-    visited.reset();
-
-    visited.mark(from);
-
-    return queryRec(from, to);
-  }
-
-  bool queryRec(const Vertex from, const Vertex to) {
-    if (discoveredTime[from] <= discoveredTime[to] &&
-        finishedTime[to] <= finishedTime[from]) {
-      return true;
-    }
-
-    if ((labels[FWD][to] & ~labels[FWD][from]).any() || (labels[BWD][from] & ~labels[BWD][to]).any()) {
-        return false;
-    }
-
-    for (const Vertex w : graphs[FWD]->edges[from]) {
-      if (!visited.isMarked(w)) {
-        visited.mark(w);
-        if (queryRec(w, to)) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  void run_benchmark(const std::size_t numberOfQueries = 10000) {
+  template <typename QueryFunction>
+  void run_benchmark(const std::string& name, QueryFunction&& queryFn,
+                     std::size_t numberOfQueries = 10000) {
     std::vector<std::pair<Vertex, Vertex>> queries;
     queries.reserve(numberOfQueries);
 
@@ -233,25 +202,211 @@ struct BFL {
       queries.emplace_back(u, v);
     }
 
-    // Run the queries and measure the overall time in milliseconds.
     auto startTime = std::chrono::high_resolution_clock::now();
 
     std::size_t positiveCount = 0;
     for (const auto& pr : queries) {
-      positiveCount += query(pr.first, pr.second);
+      positiveCount += queryFn(pr.first, pr.second);
     }
 
     auto endTime = std::chrono::high_resolution_clock::now();
-    auto elapsedNanos = std::chrono::duration_cast<std::chrono::milliseconds>(
-                            endTime - startTime)
-                            .count();
+    auto elapsedMillis = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             endTime - startTime)
+                             .count();
 
-    double timePerQuery = static_cast<double>(elapsedNanos) / numberOfQueries;
+    double timePerQuery = static_cast<double>(elapsedMillis) / numberOfQueries;
 
-    std::cout << "Benchmark Results:\n";
+    std::cout << name << " Benchmark Results:\n";
     std::cout << "  Number of queries:            " << numberOfQueries << "\n";
-    std::cout << "  Total time (ms):              " << elapsedNanos << "\n";
+    std::cout << "  Total time (ms):              " << elapsedMillis << "\n";
     std::cout << "  Time per query (ms):          " << timePerQuery << "\n";
     std::cout << "  Number of positive queries:   " << positiveCount << "\n";
+  }
+
+  void run_dfs_benchmark(std::size_t numberOfQueries = 10000) {
+    run_benchmark(
+        "Simple DFS",
+        [this](Vertex from, Vertex to) { return dfsQuery(from, to); },
+        numberOfQueries);
+  }
+
+  void run_bfs_benchmark(std::size_t numberOfQueries = 10000) {
+    run_benchmark(
+        "Simple BFS",
+        [this](Vertex from, Vertex to) { return bfsQuery(from, to); },
+        numberOfQueries);
+  }
+
+  void run_label_bfs_benchmark(std::size_t numberOfQueries = 10000) {
+    run_benchmark(
+        "Label-based BFS",
+        [this](Vertex from, Vertex to) { return bfsQueryPruned(from, to); },
+        numberOfQueries);
+  }
+
+  void run_label_dfs_benchmark(std::size_t numberOfQueries = 10000) {
+    run_benchmark(
+        "Label-based DFS",
+        [this](Vertex from, Vertex to) { return dfsIterPruned(from, to); },
+        numberOfQueries);
+  }
+
+  bool dfsIterPruned(const Vertex from, const Vertex to) {
+    assert(graphs[FWD]->isVertex(from));
+    assert(graphs[FWD]->isVertex(to));
+
+    if (from == to) [[unlikely]]
+      return true;
+
+    resetStack();
+
+    stack[index++] = from;
+    visited.mark(from);
+
+    const auto& targetFWDLabels = labels[FWD][to];
+    const auto& targetBWDLabels = labels[BWD][to];
+    const auto targetDiscovered = discoveredTime[to];
+    const auto targetFinished = finishedTime[to];
+
+    while (index > 0) {
+      assert(index < stack.size());
+      Vertex curr = stack[--index];
+
+      if (discoveredTime[curr] <= targetDiscovered &&
+          targetFinished <= finishedTime[curr]) [[unlikely]] {
+        return true;
+      }
+
+      if ((targetFWDLabels & ~labels[FWD][curr]).any() ||
+          (labels[BWD][curr] & ~targetBWDLabels).any()) {
+        continue;
+      }
+
+      for (const Vertex w : graphs[FWD]->edges[curr]) {
+        if (!visited.isMarked(w)) {
+          visited.mark(w);
+          stack[index++] = w;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool dfsRecPruned(const Vertex from, const Vertex to) {
+    assert(graphs[FWD]->isVertex(from));
+    assert(graphs[FWD]->isVertex(to));
+
+    if (from == to) [[unlikely]]
+      return true;
+    visited.reset();
+
+    visited.mark(from);
+
+    return queryRec(from, to);
+  }
+
+  bool queryRec(const Vertex from, const Vertex to) {
+    if (discoveredTime[from] <= discoveredTime[to] &&
+        finishedTime[to] <= finishedTime[from]) [[unlikely]] {
+      return true;
+    }
+
+    if ((labels[FWD][to] & ~labels[FWD][from]).any() ||
+        (labels[BWD][from] & ~labels[BWD][to]).any()) {
+      return false;
+    }
+
+    for (const Vertex w : graphs[FWD]->edges[from]) {
+      if (!visited.isMarked(w)) {
+        visited.mark(w);
+        if (queryRec(w, to)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool simpleDFSVisit(const Vertex from, const Vertex to) {
+    if (from == to) return true;
+    for (const Vertex w : graphs[FWD]->edges[from]) {
+      if (!visited.isMarked(w)) {
+        visited.mark(w);
+        if (simpleDFSVisit(w, to)) return true;
+      }
+    }
+    return false;
+  }
+
+  bool dfsQuery(const Vertex from, const Vertex to) {
+    assert(graphs[FWD]->isVertex(from));
+    assert(graphs[FWD]->isVertex(to));
+    visited.reset();
+    visited.mark(from);
+    return simpleDFSVisit(from, to);
+  }
+
+  bool bfsQuery(const Vertex from, const Vertex to) {
+    assert(graphs[FWD]->isVertex(from));
+    assert(graphs[FWD]->isVertex(to));
+
+    resetStack();
+    std::size_t read = 0;
+
+    stack[index++] = from;
+    visited.mark(from);
+
+    while (read < index) {
+      Vertex curr = stack[read++];
+
+      if (curr == to) [[unlikely]]
+        return true;
+      for (const Vertex w : graphs[FWD]->edges[curr]) {
+        if (!visited.isMarked(w)) {
+          visited.mark(w);
+          stack[index++] = w;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool bfsQueryPruned(const Vertex from, const Vertex to) {
+    assert(graphs[FWD]->isVertex(from));
+    assert(graphs[FWD]->isVertex(to));
+
+    // Reset visited flag for the BFS
+    visited.reset();
+    std::size_t write = 0;
+    std::size_t read = 0;
+
+    stack[write++] = from;
+    visited.mark(from);
+
+    while (read < write) {
+      Vertex curr = stack[read++];
+
+      if (curr == to) [[unlikely]]
+        return true;
+
+      if (discoveredTime[curr] <= discoveredTime[to] &&
+          finishedTime[to] <= finishedTime[curr]) [[unlikely]] {
+        return true;
+      }
+
+      if ((labels[FWD][to] & ~labels[FWD][curr]).any() ||
+          (labels[BWD][curr] & ~labels[BWD][to]).any()) {
+        continue;
+      }
+
+      for (const Vertex w : graphs[FWD]->edges[curr]) {
+        if (!visited.isMarked(w)) {
+          visited.mark(w);
+          stack[write++] = w;
+        }
+      }
+    }
+    return false;
   }
 };
