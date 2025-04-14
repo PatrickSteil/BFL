@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "types.h"
+#include "status_log.h"
 
 struct Graph {
   std::vector<std::vector<Vertex>> edges;
@@ -130,6 +131,7 @@ struct Graph {
   }
 
   static Graph readFromDimacsFile(const std::string& filename) {
+    StatusLog log("Reading graph from dimacs");
     std::ifstream in(filename);
     if (!in) throw std::runtime_error("Cannot open file: " + filename);
     return readFromDimacs(in);
@@ -164,6 +166,7 @@ struct Graph {
   }
 
   static Graph readFromEdgeListFile(const std::string& filename) {
+    StatusLog log("Reading graph from edge list");
     std::ifstream in(filename);
     if (!in) throw std::runtime_error("Cannot open file: " + filename);
     return readFromEdgeList(in);

@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 
   const std::string inputFileName = parser.get<std::string>("i");
   const bool showstats = parser.get<bool>("s");
-  const bool benchmark = parser.get<bool>("s");
+  const bool benchmark = parser.get<bool>("b");
 
   // Graph fwdGraph = Graph::readFromEdgeListFile(inputFileName);
   Graph fwdGraph = Graph::readFromDimacsFile(inputFileName);
@@ -33,11 +33,12 @@ int main(int argc, char *argv[]) {
 
   Graph bwdGraph = fwdGraph.reversed();
 
-  const int s = 128;
+  const int s = 256;
+  const int d = s * 100;
   BFL<s> bfl(fwdGraph, bwdGraph);
 
   bfl.computeTimesAndOrder();
-  bfl.mergeVertices(s * 100);
+  bfl.mergeVertices(d);
   bfl.buildIndex();
 
   if (benchmark) bfl.run_benchmark();

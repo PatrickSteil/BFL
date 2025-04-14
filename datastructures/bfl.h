@@ -58,31 +58,32 @@ struct BFL {
 
   void buildIndex() {
     StatusLog log("Build Index");
-    visited.reset();
 
     std::function<void(std::uint32_t, DIRECTION)> compute =
         [&](const std::uint32_t v, const DIRECTION dir = FWD) -> void {
       visited.mark(v);
       labels[dir][v][hash[v]] = 1;
 
-      graphs[FWD]->relaxEdges(v, [&](const Vertex, const Vertex w) {
+      graphs[dir]->relaxEdges(v, [&](const Vertex, const Vertex w) {
         if (!visited.isMarked(w)) compute(w, dir);
 
         labels[dir][v] |= labels[dir][w];
       });
     };
 
+    visited.reset();
     for (std::uint32_t v = 0; v < graphs[FWD]->numVertices(); ++v) {
       if (visited.isMarked(v)) continue;
       compute(v, FWD);
     }
 
     visited.reset();
-    for (std::uint32_t v = 0; v < graphs[FWD]->numVertices(); ++v) {
+    for (std::uint32_t v = 0; v < graphs[BWD]->numVertices(); ++v) {
       if (visited.isMarked(v)) continue;
       compute(v, BWD);
     }
   }
+
   std::uint16_t hashVertex(const Vertex v) const {
     return std::hash<std::uint32_t>{}(v) % S_MAX;
   }
@@ -197,9 +198,8 @@ struct BFL {
       return true;
     }
 
-    if (((labels[FWD][to] & labels[FWD][from]) != labels[FWD][to]) ||
-        ((labels[BWD][from] & labels[BWD][to]) != labels[BWD][from])) {
-      return false;
+    if ((labels[FWD][to] & ~labels[FWD][from]).any() || (labels[BWD][from] & ~labels[BWD][to]).any()) {
+        return false;
     }
 
     for (const Vertex w : graphs[FWD]->edges[from]) {
