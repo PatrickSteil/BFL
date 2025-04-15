@@ -15,6 +15,8 @@ void configure_parser(cli::Parser &parser) {
                             "Show statistics about the computed hub labels.");
   parser.set_optional<bool>("b", "run_benchmark", false,
                             "Runs 100.000 random queries.");
+  parser.set_optional<bool>("t", "topo_sweep", false,
+                            "Use the topological sweep.");
   parser.set_optional<std::string>(
       "o", "output_file", "",
       "Output filename to write labels and times into.");
@@ -31,18 +33,16 @@ int main(int argc, char *argv[]) {
   const bool benchmark = parser.get<bool>("b");
 
   // Graph fwdGraph = Graph::readFromEdgeListFile(inputFileName);
-  Graph fwdGraph = Graph::readFromDimacsFile(inputFileName);
+  Graph fwdGraph;
+  fwdGraph.readDimacs(inputFileName);
 
   if (showstats) fwdGraph.showStats();
 
-  Graph bwdGraph = fwdGraph.reversed();
+  Graph bwdGraph = fwdGraph.reverseGraph();
 
   const int s = 128;
-  const int d = s * 100;
   BFL<s> bfl(fwdGraph, bwdGraph);
 
-  bfl.computeTimesAndOrder();
-  bfl.mergeVertices(d);
   bfl.buildIndex();
 
   if (showstats) bfl.printMemoryConsumption();
@@ -50,10 +50,11 @@ int main(int argc, char *argv[]) {
   if (outputFileName != "") bfl.exportData(outputFileName);
 
   if (benchmark) {
-    // bfl.run_dfs_benchmark(1000);
-    bfl.run_bfs_benchmark(1000);
-    bfl.run_label_bfs_benchmark(1000);
-    bfl.run_label_dfs_benchmark(1000);
+    // bfl.run_dfs_benchmark(10000);
+    // bfl.run_bfs_benchmark(10000);
+    // bfl.run_label_bfs_benchmark(10000);
+    bfl.run_label_dfs_benchmark_rec(10000);
+    bfl.run_label_dfs_benchmark_iter(10000);
   }
 
   return 0;
