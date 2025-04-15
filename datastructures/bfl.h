@@ -53,7 +53,6 @@ struct BFL {
     void mark(std::uint32_t timestamp) { lastSeen = timestamp; }
   };
 
-  std::array<const Graph*, 2> graphs;
   std::vector<Label> labels;
 
   std::vector<Vertex> stack;
@@ -61,9 +60,8 @@ struct BFL {
   std::size_t index;
   std::uint32_t timer;
 
-  BFL(const Graph& fwdGraph, const Graph& bwdGraph)
-      : graphs{&fwdGraph, &bwdGraph},
-        labels(fwdGraph.numVertices(), Label()),
+  BFL(Graph& fwdGraph, Graph& bwdGraph)
+      : labels(fwdGraph.numVertices(), Label()),
         stack(fwdGraph.numVertices(), 0),
         timestamp(0),
         index(0),
@@ -72,36 +70,8 @@ struct BFL {
       labels[v].degrees[FWD] = fwdGraph.degree(v);
       labels[v].degrees[BWD] = bwdGraph.degree(v);
 
-      std::vector<Vertex> neighbours;
-      neighbours.reserve(fwdGraph.degree(v));
-
-      fwdGraph.relaxEdges(v, [&](const Vertex, const Vertex w) {
-        neighbours.push_back(w);
-        return false;
-      });
-
-      assert(neighbours.size() == labels[v].degrees[FWD]);
-
-      labels[v].edges[FWD] = new Vertex[neighbours.size()];
-      std::copy(neighbours.begin(), neighbours.end(), labels[v].edges[FWD]);
-
-      neighbours.clear();
-      neighbours.reserve(bwdGraph.degree(v));
-
-      bwdGraph.relaxEdges(v, [&](const Vertex, const Vertex w) {
-        neighbours.push_back(w);
-        return false;
-      });
-
-      labels[v].edges[BWD] = new Vertex[neighbours.size()];
-      std::copy(neighbours.begin(), neighbours.end(), labels[v].edges[BWD]);
-    }
-  }
-
-  ~BFL() {
-    for (auto& l : labels) {
-      delete[] l.edges[FWD];
-      delete[] l.edges[BWD];
+      labels[v].edges[FWD] = &(fwdGraph.toVertex[fwdGraph.beginEdge(v)]);
+      labels[v].edges[BWD] = &(bwdGraph.toVertex[bwdGraph.beginEdge(v)]);
     }
   }
 
@@ -162,11 +132,10 @@ struct BFL {
 
       labels[v].set(dir, nextHash() % (K * (sizeof(std::uint32_t) << 3)));
 
-      for (std::size_t start = graphs[dir]->beginEdge(v),
-                       end = graphs[dir]->endEdge(v);
-           start < end; ++start) {
-        const Vertex w = graphs[dir]->toVertex[start];
+      for (int i = 0; i < labels[v].degrees[dir]; ++i) {
+        const Vertex w = labels[v].edges[dir][i];
         if (!labels[w].isMarked(timer)) compute(w, dir);
+
         for (int i = 0; i < NUM_WORDS; ++i) {
           labels[v].bits[dir][i] |= labels[w].bits[dir][i];
         }
@@ -177,13 +146,13 @@ struct BFL {
     };
 
     resetTimer();
-    for (std::uint32_t v = 0; v < labels.size(); ++v) {
+    for (int v = 0; v < labels.size(); ++v) {
       if (labels[v].isMarked(timer)) continue;
       compute(v, FWD);
     }
 
     resetTimer();
-    for (std::uint32_t v = 0; v < labels.size(); ++v) {
+    for (int v = 0; v < labels.size(); ++v) {
       if (labels[v].isMarked(timer)) continue;
       compute(v, BWD);
     }
@@ -294,8 +263,8 @@ struct BFL {
   }
 
   bool dfsRecPruned(const Vertex from, const Vertex to) {
-    // assert(graphs[FWD]->isVertex(from));
-    // assert(graphs[FWD]->isVertex(to));
+    assert(from < labels.size());
+    assert(to < labels.size());
 
     if (from == to) [[unlikely]]
       return true;
@@ -338,8 +307,8 @@ struct BFL {
   }
 
   bool dfsIterativePruned(const Vertex from, const Vertex to) {
-    // assert(graphs[FWD]->isVertex(from));
-    // assert(graphs[FWD]->isVertex(to));
+    assert(from < labels.size());
+    assert(to < labels.size());
 
     if (from == to) [[unlikely]]
       return true;
@@ -356,7 +325,7 @@ struct BFL {
 
       if (labels[u].times[BWD] < labels[to].times[BWD]) {
         continue;
-      } else if (labels[u].times[FWD] <= labels[to].times[FWD]) {
+      } else if (labels[u].times[FWD] <= labels[to].times[FWD]) [[unlikely]] {
         return true;
       }
 
@@ -369,16 +338,21 @@ struct BFL {
         pruned |= ((labels[to].bits[FWD][i] & labels[u].bits[FWD][i]) !=
                    labels[to].bits[FWD][i]);
       }
-      if (pruned) continue;
+      if (pruned) [[unlikely]]
+        continue;
 
       for (int i = 0; i < NUM_WORDS; ++i) {
         pruned |= ((labels[u].bits[BWD][i] & labels[to].bits[BWD][i]) !=
                    labels[u].bits[BWD][i]);
       }
 
-      if (pruned) continue;
+      if (pruned) [[unlikely]]
+        continue;
 
       for (int i = 0; i < labels[u].degrees[FWD]; ++i) {
+        if (4 < labels[u].degrees[FWD]) {
+          PREFETCH(&labels[labels[u].edges[FWD][i + 4]]);
+        }
         const Vertex w = labels[u].edges[FWD][i];
         if (!labels[w].isMarked(timer)) {
           labels[w].mark(timer);

@@ -15,8 +15,6 @@ void configure_parser(cli::Parser &parser) {
                             "Show statistics about the computed hub labels.");
   parser.set_optional<bool>("b", "run_benchmark", false,
                             "Runs 100.000 random queries.");
-  parser.set_optional<bool>("t", "topo_sweep", false,
-                            "Use the topological sweep.");
   parser.set_optional<std::string>(
       "o", "output_file", "",
       "Output filename to write labels and times into.");
