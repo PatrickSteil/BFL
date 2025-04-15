@@ -38,7 +38,7 @@ Here is an example of running the BFL algorithm on a graph read from a DIMACS fi
 
 Example Output:
 ```bash
-Reading graph from dimacs ... done [19242ms]
+Reading graph from dimacs ... done [12069ms]
 Graph Statistics:
   Number of vertices:            5861608
   Number of edges:               12515291
@@ -46,28 +46,21 @@ Graph Statistics:
   Max degree:                    31
   Average degree:                2.13513
   Number of isolated vertices:   1618
-DFS Visit Times ... done [690ms]
-Merge Vertices ... done [34ms]
-Build Index ... done [1734ms]
+Build Index ... done [1143ms]
 Memory Consumption:
-  Labels memory: 178.88208 mb
-  Discovery/Finish times memory: 44.72052 mb
-  Total memory: 223.60260 mb
-Simple BFS Benchmark Results:
-  Number of queries:            1000
-  Total time (ms):              127856
-  Time per query (ms):          127.85600
-  Number of positive queries:   361
-Label-based BFS Benchmark Results:
-  Number of queries:            1000
-  Total time (ms):              36064
-  Time per query (ms):          36.06400
-  Number of positive queries:   361
-Label-based DFS Benchmark Results:
-  Number of queries:            1000
-  Total time (ms):              56853
-  Time per query (ms):          56.85300
-  Number of positive queries:   361
+  Labels memory: 447.205 mb
+  Discovery/Finish times memory: 89.441 mb
+  Total memory: 536.646 mb
+Label-based DFS-Rec Benchmark Results:
+  Number of queries:            10000
+  Total time (ms):              5651
+  Time per query (ms):          0.5651
+  Number of positive queries:   3520
+Label-based DFS-Iter Benchmark Results:
+  Number of queries:            10000
+  Total time (ms):              5110
+  Time per query (ms):          0.511
+  Number of positive queries:   3520
 ```
 
 ## Reference
