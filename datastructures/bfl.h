@@ -27,13 +27,15 @@
 #include "status_log.h"
 #include "types.h"
 
-template <int S_MAX = 64>
+template <int K = 5>
 struct BFL {
-  static constexpr int NUM_WORDS = (S_MAX) / 64;
+  static constexpr int NUM_WORDS = K;
   struct Label {
-    std::array<std::array<std::uint64_t, NUM_WORDS>, 2> bits;
-    std::pair<std::uint32_t, std::uint32_t> times = {0, 0};
-    std::pair<std::uint16_t, std::uint32_t> degrees = {0, 0};
+    std::array<std::array<std::uint32_t, NUM_WORDS>, 2> bits;
+    std::array<std::uint32_t, 2> times = {0, 0};
+    std::array<std::uint16_t, 2> degrees = {0, 0};
+    std::array<Vertex*, 2> edges = {nullptr, nullptr};
+    std::uint32_t lastSeen{0};
 
     Label() {
       bits[FWD].fill(0);
@@ -41,56 +43,91 @@ struct BFL {
     }
 
     void set(const DIRECTION dir, std::size_t pos) {
-      std::size_t word = pos / 64;
-      std::size_t offset = pos % 64;
-      bits[FWD][word] |= (1ULL << offset);
+      std::size_t word = pos / 32;
+      std::size_t offset = pos % 32;
+      bits[dir][word] |= (1ULL << offset);
     }
+
+    bool isMarked(std::uint32_t timestamp) { return lastSeen == timestamp; }
+
+    void mark(std::uint32_t timestamp) { lastSeen = timestamp; }
   };
 
   std::array<const Graph*, 2> graphs;
   std::vector<Label> labels;
 
-  GenerationChecker<> visited;
-
   std::vector<Vertex> stack;
   std::size_t timestamp;
   std::size_t index;
+  std::uint32_t timer;
 
   BFL(const Graph& fwdGraph, const Graph& bwdGraph)
       : graphs{&fwdGraph, &bwdGraph},
         labels(fwdGraph.numVertices(), Label()),
-        visited(fwdGraph.numVertices()),
         stack(fwdGraph.numVertices(), 0),
         timestamp(0),
-        index(0) {
+        index(0),
+        timer(0) {
     for (Vertex v = 0; v < fwdGraph.numVertices(); ++v) {
-      labels[v].degrees.first = fwdGraph.degree(v);
-      labels[v].degrees.second = bwdGraph.degree(v);
+      labels[v].degrees[FWD] = fwdGraph.degree(v);
+      labels[v].degrees[BWD] = bwdGraph.degree(v);
+
+      std::vector<Vertex> neighbours;
+      neighbours.reserve(fwdGraph.degree(v));
+
+      fwdGraph.relaxEdges(v, [&](const Vertex, const Vertex w) {
+        neighbours.push_back(w);
+        return false;
+      });
+
+      assert(neighbours.size() == labels[v].degrees[FWD]);
+
+      labels[v].edges[FWD] = new Vertex[neighbours.size()];
+      std::copy(neighbours.begin(), neighbours.end(), labels[v].edges[FWD]);
+
+      neighbours.clear();
+      neighbours.reserve(bwdGraph.degree(v));
+
+      bwdGraph.relaxEdges(v, [&](const Vertex, const Vertex w) {
+        neighbours.push_back(w);
+        return false;
+      });
+
+      labels[v].edges[BWD] = new Vertex[neighbours.size()];
+      std::copy(neighbours.begin(), neighbours.end(), labels[v].edges[BWD]);
+    }
+  }
+
+  ~BFL() {
+    for (auto& l : labels) {
+      delete[] l.edges[FWD];
+      delete[] l.edges[BWD];
     }
   }
 
   void printMemoryConsumption() const {
-    std::size_t numVertices = graphs[FWD]->numVertices();
+    std::size_t numVertices = labels.size();
 
-    std::size_t labelsMemory = 2 * numVertices * sizeof(Label);
-    // std::size_t timesMemory = numVertices * sizeof(std::pair<std::uint32_t,
-    // std::uint32_t>); std::size_t totalMemory = labelsMemory + timesMemory;
+    std::size_t labelsMemory = 2 * numVertices * sizeof(Label::bits);
+    std::size_t timesMemory = 2 * numVertices * sizeof(Label::times);
+    std::size_t totalMemory = labelsMemory + timesMemory;
 
     std::cout << "Memory Consumption:\n";
-    // std::cout << "  Labels memory: "
-    //           << static_cast<double>(labelsMemory) / (1024.0 * 1024.0)
-    //           << " mb\n";
-    // std::cout << "  Discovery/Finish times memory: "
-    //           << static_cast<double>(timesMemory) / (1024.0 * 1024.0)
-    //           << " mb\n";
-    std::cout << "  Total memory: "
+    std::cout << "  Labels memory: "
               << static_cast<double>(labelsMemory) / (1024.0 * 1024.0)
+              << " mb\n";
+    std::cout << "  Discovery/Finish times memory: "
+              << static_cast<double>(timesMemory) / (1024.0 * 1024.0)
+              << " mb\n";
+    std::cout << "  Total memory: "
+              << static_cast<double>(totalMemory) / (1024.0 * 1024.0)
               << " mb\n";
   }
 
   std::size_t nextHash() {
     static std::size_t c = 0, r = rand();
-    if (c >= (std::size_t)labels.size() / (S_MAX * 100)) {
+    if (c >=
+        (std::size_t)labels.size() / (K * (sizeof(std::uint32_t) << 3) * 10)) {
       c = 0;
       r = rand();
     }
@@ -98,28 +135,38 @@ struct BFL {
     return r;
   }
 
+  void resetTimer() {
+    ++timer;
+
+    if (timer == 0) {
+      timer = 1;
+
+      for (auto& n : labels) n.mark(0);
+    }
+  }
+
   void buildIndex() {
     StatusLog log("Build Index");
 
     timestamp = 0;
 
-    auto setDiscovery = [&](Vertex v) { labels[v].times.first = timestamp++; };
-    auto setFinish = [&](Vertex v) { labels[v].times.second = timestamp++; };
+    auto setDiscovery = [&](Vertex v) { labels[v].times[FWD] = timestamp++; };
+    auto setFinish = [&](Vertex v) { labels[v].times[BWD] = timestamp++; };
 
     std::function<void(Vertex, DIRECTION)> compute =
         [&](const Vertex v, const DIRECTION dir = FWD) -> void {
-      visited.mark(v);
+      labels[v].mark(timer);
       if (dir == FWD) {
         setDiscovery(v);
       }
 
-      labels[v].set(dir, nextHash() % S_MAX);
+      labels[v].set(dir, nextHash() % (K * (sizeof(std::uint32_t) << 3)));
 
       for (std::size_t start = graphs[dir]->beginEdge(v),
                        end = graphs[dir]->endEdge(v);
            start < end; ++start) {
         const Vertex w = graphs[dir]->toVertex[start];
-        if (!visited.isMarked(w)) compute(w, dir);
+        if (!labels[w].isMarked(timer)) compute(w, dir);
         for (int i = 0; i < NUM_WORDS; ++i) {
           labels[v].bits[dir][i] |= labels[w].bits[dir][i];
         }
@@ -129,15 +176,15 @@ struct BFL {
       }
     };
 
-    visited.reset();
-    for (std::uint32_t v = 0; v < graphs[FWD]->numVertices(); ++v) {
-      if (visited.isMarked(v)) continue;
+    resetTimer();
+    for (std::uint32_t v = 0; v < labels.size(); ++v) {
+      if (labels[v].isMarked(timer)) continue;
       compute(v, FWD);
     }
 
-    visited.reset();
-    for (std::uint32_t v = 0; v < graphs[BWD]->numVertices(); ++v) {
-      if (visited.isMarked(v)) continue;
+    resetTimer();
+    for (std::uint32_t v = 0; v < labels.size(); ++v) {
+      if (labels[v].isMarked(timer)) continue;
       compute(v, BWD);
     }
   }
@@ -153,10 +200,10 @@ struct BFL {
     outFile
         << "Vertex,DiscoveredTime,FinishedTime,ForwardLabel,BackwardLabel\n";
 
-    const std::size_t numVertices = graphs[FWD]->numVertices();
+    const std::size_t numVertices = labels.size();
     for (Vertex v = 0; v < numVertices; ++v) {
-      outFile << v << "," << labels[v].times.first << ","
-              << labels[v].times.second << ",";
+      outFile << v << "," << labels[v].times[FWD] << "," << labels[v].times[BWD]
+              << ",";
       for (auto word : labels[v].bits[FWD]) outFile << word << " ";
       outFile << ",";
       for (auto word : labels[v].bits[BWD]) outFile << word << " ";
@@ -175,7 +222,7 @@ struct BFL {
     std::vector<std::pair<Vertex, Vertex>> queries;
     queries.reserve(numberOfQueries);
 
-    std::size_t n = graphs[FWD]->numVertices();
+    std::size_t n = labels.size();
     if (n == 0) {
       std::cout << "Graph is empty.\n";
       return;
@@ -247,53 +294,41 @@ struct BFL {
   }
 
   bool dfsRecPruned(const Vertex from, const Vertex to) {
-    assert(graphs[FWD]->isVertex(from));
-    assert(graphs[FWD]->isVertex(to));
+    // assert(graphs[FWD]->isVertex(from));
+    // assert(graphs[FWD]->isVertex(to));
 
     if (from == to) [[unlikely]]
       return true;
-    visited.reset();
+    resetTimer();
+    labels[from].mark(timer);
 
-    visited.mark(from);
-
-    return queryRec(from, to);
+    return queryRec(labels[from], labels[to]);
   }
 
-  bool queryRec(const Vertex from, const Vertex to) {
-    if (labels[from].times.second < labels[to].times.second) {
+  bool queryRec(Label& from, Label& to) {
+    if (from.times[BWD] < to.times[BWD]) {
       return false;
-    } else if (labels[from].times.first <= labels[to].times.first) {
+    } else if (from.times[FWD] <= to.times[FWD]) {
       return true;
     }
 
-    if ((labels[from].degrees.first == 0) || (labels[to].degrees.second == 0))
-      return false;
+    if ((from.degrees[FWD] == 0) || (to.degrees[BWD] == 0)) return false;
 
     for (int i = 0; i < NUM_WORDS; ++i) {
-      if ((labels[to].bits[FWD][i] & labels[from].bits[FWD][i]) !=
-          labels[to].bits[FWD][i])
+      if ((to.bits[FWD][i] & from.bits[FWD][i]) != to.bits[FWD][i])
         return false;
     }
 
     for (int i = 0; i < NUM_WORDS; ++i) {
-      if ((labels[from].bits[BWD][i] & labels[to].bits[BWD][i]) !=
-          labels[from].bits[BWD][i])
+      if ((from.bits[BWD][i] & to.bits[BWD][i]) != from.bits[BWD][i])
         return false;
     }
 
-    for (std::size_t start = graphs[FWD]->beginEdge(from),
-                     end = graphs[FWD]->endEdge(from);
-         start < end; ++start) {
-      PREFETCH(&(graphs[FWD]->toVertex[start + 4]));
-
-      assert(start < graphs[FWD]->toVertex.size());
-
-      const Vertex w = graphs[FWD]->toVertex[start];
-      assert(graphs[FWD]->isVertex(w));
-
-      if (!visited.isMarked(w)) {
-        visited.mark(w);
-        if (queryRec(w, to)) [[unlikely]] {
+    for (int i = 0; i < from.degrees[FWD]; ++i) {
+      const Vertex w = from.edges[FWD][i];
+      if (!labels[w].isMarked(timer)) {
+        labels[w].mark(timer);
+        if (queryRec(labels[w], to)) [[unlikely]] {
           return true;
         }
       }
@@ -303,14 +338,14 @@ struct BFL {
   }
 
   bool dfsIterativePruned(const Vertex from, const Vertex to) {
-    assert(graphs[FWD]->isVertex(from));
-    assert(graphs[FWD]->isVertex(to));
+    // assert(graphs[FWD]->isVertex(from));
+    // assert(graphs[FWD]->isVertex(to));
 
     if (from == to) [[unlikely]]
       return true;
 
-    visited.reset();
-    visited.mark(from);
+    resetTimer();
+    labels[from].mark(timer);
 
     index = 0;
 
@@ -319,13 +354,13 @@ struct BFL {
     while (index > 0) {
       const Vertex u = stack[--index];
 
-      if (labels[u].times.second < labels[to].times.second) {
+      if (labels[u].times[BWD] < labels[to].times[BWD]) {
         continue;
-      } else if (labels[u].times.first <= labels[to].times.first) {
+      } else if (labels[u].times[FWD] <= labels[to].times[FWD]) {
         return true;
       }
 
-      if ((labels[u].degrees.first == 0) || (labels[to].degrees.second == 0))
+      if ((labels[u].degrees[FWD] == 0) || (labels[to].degrees[BWD] == 0))
         continue;
 
       bool pruned = false;
@@ -343,18 +378,10 @@ struct BFL {
 
       if (pruned) continue;
 
-      std::size_t start = graphs[FWD]->beginEdge(u);
-      std::size_t end = graphs[FWD]->endEdge(u);
-
-      for (; start < end; ++start) {
-        PREFETCH(&(graphs[FWD]->toVertex[start + 4]));
-
-        assert(start < graphs[FWD]->toVertex.size());
-        const Vertex w = graphs[FWD]->toVertex[start];
-        assert(graphs[FWD]->isVertex(w));
-
-        if (!visited.isMarked(w)) {
-          visited.mark(w);
+      for (int i = 0; i < labels[u].degrees[FWD]; ++i) {
+        const Vertex w = labels[u].edges[FWD][i];
+        if (!labels[w].isMarked(timer)) {
+          labels[w].mark(timer);
 
           stack[index++] = w;
         }

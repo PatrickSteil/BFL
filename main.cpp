@@ -40,8 +40,7 @@ int main(int argc, char *argv[]) {
 
   Graph bwdGraph = fwdGraph.reverseGraph();
 
-  const int s = 128;
-  BFL<s> bfl(fwdGraph, bwdGraph);
+  BFL<6> bfl(fwdGraph, bwdGraph);
 
   bfl.buildIndex();
 

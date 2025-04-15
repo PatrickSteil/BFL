@@ -9,10 +9,10 @@
 #include <limits>
 #include <vector>
 
-typedef int Vertex;
+typedef uint32_t Vertex;
 typedef std::size_t Index;
 
-constexpr int noVertex = int(-1);
+constexpr uint32_t noVertex = uint32_t(-1);
 constexpr std::size_t noIndex = std::size_t(-1);
 
 enum DIRECTION : bool { FWD, BWD };
