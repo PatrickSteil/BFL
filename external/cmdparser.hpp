@@ -25,23 +25,23 @@ class NumericalBase {
   NumericalBase(T val) : value(val), base(numericalBase) {}
 
   operator T() const { return this->value; }
-  operator T *() { return this->value; }
+  operator T*() { return this->value; }
 
   T value;
   unsigned int base;
 };
 
 struct CallbackArgs {
-  const std::vector<std::string> &arguments;
-  std::ostream &output;
-  std::ostream &error;
+  const std::vector<std::string>& arguments;
+  std::ostream& output;
+  std::ostream& error;
 };
 class Parser {
  private:
   class CmdBase {
    public:
-    explicit CmdBase(const std::string &name, const std::string &alternative,
-                     const std::string &description, bool required,
+    explicit CmdBase(const std::string& name, const std::string& alternative,
+                     const std::string& description, bool required,
                      bool dominant, bool variadic)
         : name(name),
           command(name.size() > 0 ? "-" + name : ""),
@@ -66,9 +66,9 @@ class Parser {
     bool const variadic;
 
     virtual std::string print_value() const = 0;
-    virtual bool parse(std::ostream &output, std::ostream &error) = 0;
+    virtual bool parse(std::ostream& output, std::ostream& error) = 0;
 
-    bool is(const std::string &given) const {
+    bool is(const std::string& given) const {
       return given == command || given == alternative;
     }
   };
@@ -91,14 +91,14 @@ class Parser {
   template <typename T>
   class CmdFunction final : public CmdBase {
    public:
-    explicit CmdFunction(const std::string &name,
-                         const std::string &alternative,
-                         const std::string &description, bool required,
+    explicit CmdFunction(const std::string& name,
+                         const std::string& alternative,
+                         const std::string& description, bool required,
                          bool dominant)
         : CmdBase(name, alternative, description, required, dominant,
                   ArgumentCountChecker<T>::Variadic) {}
 
-    virtual bool parse(std::ostream &output, std::ostream &error) {
+    virtual bool parse(std::ostream& output, std::ostream& error) {
       try {
         CallbackArgs args{arguments, output, error};
         value = callback(args);
@@ -110,21 +110,21 @@ class Parser {
 
     virtual std::string print_value() const { return ""; }
 
-    std::function<T(CallbackArgs &)> callback;
+    std::function<T(CallbackArgs&)> callback;
     T value;
   };
 
   template <typename T>
   class CmdArgument final : public CmdBase {
    public:
-    explicit CmdArgument(const std::string &name,
-                         const std::string &alternative,
-                         const std::string &description, bool required,
+    explicit CmdArgument(const std::string& name,
+                         const std::string& alternative,
+                         const std::string& description, bool required,
                          bool dominant)
         : CmdBase(name, alternative, description, required, dominant,
                   ArgumentCountChecker<T>::Variadic) {}
 
-    virtual bool parse(std::ostream &, std::ostream &) {
+    virtual bool parse(std::ostream&, std::ostream&) {
       try {
         value = Parser::parse(arguments, value);
         return true;
@@ -138,15 +138,15 @@ class Parser {
     T value;
   };
 
-  static int parse(const std::vector<std::string> &elements, const int &,
+  static int parse(const std::vector<std::string>& elements, const int&,
                    int numberBase = 0) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stoi(elements[0], 0, numberBase);
   }
 
-  static bool parse(const std::vector<std::string> &elements,
-                    const bool &defval) {
+  static bool parse(const std::vector<std::string>& elements,
+                    const bool& defval) {
     if (elements.size() != 0)
       throw std::runtime_error(
           "A boolean command line parameter cannot have any arguments.");
@@ -154,77 +154,76 @@ class Parser {
     return !defval;
   }
 
-  static double parse(const std::vector<std::string> &elements,
-                      const double &) {
+  static double parse(const std::vector<std::string>& elements, const double&) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stod(elements[0]);
   }
 
-  static float parse(const std::vector<std::string> &elements, const float &) {
+  static float parse(const std::vector<std::string>& elements, const float&) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stof(elements[0]);
   }
 
-  static long double parse(const std::vector<std::string> &elements,
-                           const long double &) {
+  static long double parse(const std::vector<std::string>& elements,
+                           const long double&) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stold(elements[0]);
   }
 
-  static unsigned int parse(const std::vector<std::string> &elements,
-                            const unsigned int &, int numberBase = 0) {
+  static unsigned int parse(const std::vector<std::string>& elements,
+                            const unsigned int&, int numberBase = 0) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return static_cast<unsigned int>(std::stoul(elements[0], 0, numberBase));
   }
 
-  static unsigned long parse(const std::vector<std::string> &elements,
-                             const unsigned long &, int numberBase = 0) {
+  static unsigned long parse(const std::vector<std::string>& elements,
+                             const unsigned long&, int numberBase = 0) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stoul(elements[0], 0, numberBase);
   }
 
-  static unsigned long long parse(const std::vector<std::string> &elements,
-                                  const unsigned long long &,
+  static unsigned long long parse(const std::vector<std::string>& elements,
+                                  const unsigned long long&,
                                   int numberBase = 0) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stoull(elements[0], 0, numberBase);
   }
 
-  static long long parse(const std::vector<std::string> &elements,
-                         const long long &, int numberBase = 0) {
+  static long long parse(const std::vector<std::string>& elements,
+                         const long long&, int numberBase = 0) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stoll(elements[0], 0, numberBase);
   }
 
-  static long parse(const std::vector<std::string> &elements, const long &,
+  static long parse(const std::vector<std::string>& elements, const long&,
                     int numberBase = 0) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return std::stol(elements[0], 0, numberBase);
   }
 
-  static std::string parse(const std::vector<std::string> &elements,
-                           const std::string &) {
+  static std::string parse(const std::vector<std::string>& elements,
+                           const std::string&) {
     if (elements.size() != 1) throw std::bad_cast();
 
     return elements[0];
   }
 
   template <class T>
-  static std::vector<T> parse(const std::vector<std::string> &elements,
-                              const std::vector<T> &) {
+  static std::vector<T> parse(const std::vector<std::string>& elements,
+                              const std::vector<T>&) {
     const T defval = T();
     std::vector<T> values{};
     std::vector<std::string> buffer(1);
 
-    for (const auto &element : elements) {
+    for (const auto& element : elements) {
       buffer[0] = element;
       values.push_back(parse(buffer, defval));
     }
@@ -233,8 +232,8 @@ class Parser {
   }
 
   template <typename T>
-  static T parse(const std::vector<std::string> &elements,
-                 const NumericalBase<T> &wrapper) {
+  static T parse(const std::vector<std::string>& elements,
+                 const NumericalBase<T>& wrapper) {
     return parse(elements, wrapper.value, 0);
   }
 
@@ -245,27 +244,27 @@ class Parser {
   /// \param wrapper
   /// \return parsed number
   template <typename T, int base>
-  static T parse(const std::vector<std::string> &elements,
-                 const NumericalBase<T, base> &wrapper) {
+  static T parse(const std::vector<std::string>& elements,
+                 const NumericalBase<T, base>& wrapper) {
     return parse(elements, wrapper.value, wrapper.base);
   }
 
   template <class T>
-  static std::string stringify(const T &value) {
+  static std::string stringify(const T& value) {
     return std::to_string(value);
   }
 
   template <class T, int base>
-  static std::string stringify(const NumericalBase<T, base> &wrapper) {
+  static std::string stringify(const NumericalBase<T, base>& wrapper) {
     return std::to_string(wrapper.value);
   }
 
   template <class T>
-  static std::string stringify(const std::vector<T> &values) {
+  static std::string stringify(const std::vector<T>& values) {
     std::stringstream ss{};
     ss << "[ ";
 
-    for (const auto &value : values) {
+    for (const auto& value : values) {
       ss << stringify(value) << " ";
     }
 
@@ -273,31 +272,31 @@ class Parser {
     return ss.str();
   }
 
-  static std::string stringify(const std::string &str) { return str; }
+  static std::string stringify(const std::string& str) { return str; }
 
  public:
   template <typename T>
   class ArgumentPromise {
    public:
-    explicit ArgumentPromise(CmdArgument<T> *cmd) : cmd_(cmd) {}
+    explicit ArgumentPromise(CmdArgument<T>* cmd) : cmd_(cmd) {}
 
     T get() const { return cmd_->value; }
 
    private:
-    CmdArgument<T> *cmd_;
+    CmdArgument<T>* cmd_;
   };
 
-  explicit Parser(int argc, const char **argv) { init(argc, argv); }
+  explicit Parser(int argc, const char** argv) { init(argc, argv); }
 
-  explicit Parser(int argc, char **argv) { init(argc, argv); }
+  explicit Parser(int argc, char** argv) { init(argc, argv); }
 
-  Parser(int argc, const char **argv,
+  Parser(int argc, const char** argv,
          std::string generalProgramDescriptionForHelpText)
       : _general_help_text(std::move(generalProgramDescriptionForHelpText)) {
     init(argc, argv);
   }
 
-  Parser(int argc, char **argv,
+  Parser(int argc, char** argv,
          std::string generalProgramDescriptionForHelpText)
       : _general_help_text(std::move(generalProgramDescriptionForHelpText)) {
     init(argc, argv);
@@ -314,7 +313,7 @@ class Parser {
     }
   }
 
-  void init(int argc, char **argv) {
+  void init(int argc, char** argv) {
     _appname = argv[0];
 
     for (int i = 1; i < argc; ++i) {
@@ -323,7 +322,7 @@ class Parser {
     enable_help();
   }
 
-  void init(int argc, const char **argv) {
+  void init(int argc, const char** argv) {
     _appname = argv[0];
 
     for (int i = 1; i < argc; ++i) {
@@ -333,7 +332,7 @@ class Parser {
   }
 
   bool has_help() const {
-    for (const auto &command : _commands) {
+    for (const auto& command : _commands) {
       if (command->name == "h" && command->alternative == "--help") {
         return true;
       }
@@ -343,14 +342,13 @@ class Parser {
   }
 
   void enable_help() {
-    set_callback(
-        "h", "help",
-        std::function<bool(CallbackArgs &)>([this](CallbackArgs &args) {
-          args.output << this->usage();
-          exit(0);
-          return false;
-        }),
-        "", true);
+    set_callback("h", "help",
+                 std::function<bool(CallbackArgs&)>([this](CallbackArgs& args) {
+                   args.output << this->usage();
+                   exit(0);
+                   return false;
+                 }),
+                 "", true);
   }
 
   void disable_help() {
@@ -366,7 +364,7 @@ class Parser {
 
   template <typename T>
   ArgumentPromise<T> set_default(bool is_required,
-                                 const std::string &description = "",
+                                 const std::string& description = "",
                                  T defaultValue = T()) {
     auto command = new CmdArgument<T>{"", "", description, is_required, false};
     command->value = defaultValue;
@@ -375,9 +373,9 @@ class Parser {
   }
 
   template <typename T>
-  ArgumentPromise<T> set_required(const std::string &name,
-                                  const std::string &alternative,
-                                  const std::string &description = "",
+  ArgumentPromise<T> set_required(const std::string& name,
+                                  const std::string& alternative,
+                                  const std::string& description = "",
                                   bool dominant = false) {
     auto command =
         new CmdArgument<T>{name, alternative, description, true, dominant};
@@ -386,10 +384,10 @@ class Parser {
   }
 
   template <typename T>
-  ArgumentPromise<T> set_optional(const std::string &name,
-                                  const std::string &alternative,
+  ArgumentPromise<T> set_optional(const std::string& name,
+                                  const std::string& alternative,
                                   T defaultValue,
-                                  const std::string &description = "",
+                                  const std::string& description = "",
                                   bool dominant = false) {
     auto command =
         new CmdArgument<T>{name, alternative, description, false, dominant};
@@ -399,9 +397,9 @@ class Parser {
   }
 
   template <typename T>
-  void set_callback(const std::string &name, const std::string &alternative,
-                    std::function<T(CallbackArgs &)> callback,
-                    const std::string &description = "",
+  void set_callback(const std::string& name, const std::string& alternative,
+                    std::function<T(CallbackArgs&)> callback,
+                    const std::string& description = "",
                     bool dominant = false) {
     auto command =
         new CmdFunction<T>{name, alternative, description, false, dominant};
@@ -417,10 +415,10 @@ class Parser {
 
   inline bool run() { return run(std::cout, std::cerr); }
 
-  inline bool run(std::ostream &output) { return run(output, std::cerr); }
+  inline bool run(std::ostream& output) { return run(output, std::cerr); }
 
   bool doesArgumentExist(std::string name, std::string altName) {
-    for (const auto &argument : _arguments) {
+    for (const auto& argument : _arguments) {
       if (argument == '-' + name || argument == altName) {
         return true;
       }
@@ -431,7 +429,7 @@ class Parser {
 
   inline bool doesHelpExist() { return doesArgumentExist("h", "--help"); }
 
-  bool run(std::ostream &output, std::ostream &error) {
+  bool run(std::ostream& output, std::ostream& error) {
     if (_arguments.size() > 0) {
       auto current = find_default();
 
@@ -489,10 +487,10 @@ class Parser {
   }
 
   template <typename T>
-  T get(const std::string &name) const {
-    for (const auto &command : _commands) {
+  T get(const std::string& name) const {
+    for (const auto& command : _commands) {
       if (command->name == name) {
-        auto cmd = dynamic_cast<CmdArgument<T> *>(command);
+        auto cmd = dynamic_cast<CmdArgument<T>*>(command);
 
         if (cmd == nullptr) {
           throw std::runtime_error("Invalid usage of the parameter " + name +
@@ -512,7 +510,7 @@ class Parser {
   }
 
   template <typename T>
-  T get_if(const std::string &name, std::function<T(T)> callback) const {
+  T get_if(const std::string& name, std::function<T(T)> callback) const {
     auto value = get<T>(name);
     return callback(value);
   }
@@ -520,7 +518,7 @@ class Parser {
   int requirements() const {
     int count = 0;
 
-    for (const auto &command : _commands) {
+    for (const auto& command : _commands) {
       if (command->required) {
         ++count;
       }
@@ -531,10 +529,10 @@ class Parser {
 
   int commands() const { return static_cast<int>(_commands.size()); }
 
-  inline const std::string &app_name() const { return _appname; }
+  inline const std::string& app_name() const { return _appname; }
 
  protected:
-  CmdBase *find(const std::string &name) {
+  CmdBase* find(const std::string& name) {
     for (auto command : _commands) {
       if (command->is(name)) {
         return command;
@@ -544,7 +542,7 @@ class Parser {
     return nullptr;
   }
 
-  CmdBase *find_default() {
+  CmdBase* find_default() {
     for (auto command : _commands) {
       if (command->name == "") {
         return command;
@@ -559,7 +557,7 @@ class Parser {
     ss << _general_help_text << "\n\n";
     ss << "Available parameters:\n\n";
 
-    for (const auto &command : _commands) {
+    for (const auto& command : _commands) {
       ss << "  " << command->command << "\t" << command->alternative;
 
       if (command->required == true) {
@@ -581,13 +579,13 @@ class Parser {
     return ss.str();
   }
 
-  void print_help(std::stringstream &ss) const {
+  void print_help(std::stringstream& ss) const {
     if (has_help()) {
       ss << "For more help use --help or -h.\n";
     }
   }
 
-  std::string howto_required(CmdBase *command) const {
+  std::string howto_required(CmdBase* command) const {
     std::stringstream ss{};
     ss << "The parameter " << command->name << " is required.\n";
     ss << command->description << '\n';
@@ -595,7 +593,7 @@ class Parser {
     return ss.str();
   }
 
-  std::string howto_use(CmdBase *command) const {
+  std::string howto_use(CmdBase* command) const {
     std::stringstream ss{};
     ss << "The parameter " << command->name << " has invalid arguments.\n";
     ss << command->description << '\n';
@@ -611,11 +609,11 @@ class Parser {
     return ss.str();
   }
 
-  const std::string &get_general_help_text() const {
+  const std::string& get_general_help_text() const {
     return _general_help_text;
   }
 
-  void set_general_help_text(const std::string &generalHelpText) {
+  void set_general_help_text(const std::string& generalHelpText) {
     _general_help_text = generalHelpText;
   }
 
@@ -623,6 +621,6 @@ class Parser {
   std::string _appname;
   std::string _general_help_text;
   std::vector<std::string> _arguments;
-  std::vector<CmdBase *> _commands;
+  std::vector<CmdBase*> _commands;
 };
 }  // namespace cli

@@ -146,13 +146,13 @@ struct BFL {
     };
 
     resetTimer();
-    for (int v = 0; v < labels.size(); ++v) {
+    for (std::size_t v = 0; v < labels.size(); ++v) {
       if (labels[v].isMarked(timer)) continue;
       compute(v, FWD);
     }
 
     resetTimer();
-    for (int v = 0; v < labels.size(); ++v) {
+    for (std::size_t v = 0; v < labels.size(); ++v) {
       if (labels[v].isMarked(timer)) continue;
       compute(v, BWD);
     }
@@ -274,24 +274,30 @@ struct BFL {
     return queryRec(labels[from], labels[to]);
   }
 
-  bool queryRec(Label& from, Label& to) {
-    if (from.times[BWD] < to.times[BWD]) {
+  bool queryRec(const Label& from, const Label& to) {
+    if (from.times[BWD] < to.times[BWD]) [[unlikely]] {
       return false;
-    } else if (from.times[FWD] <= to.times[FWD]) {
+    } else if (from.times[FWD] <= to.times[FWD]) [[unlikely]] {
       return true;
     }
 
-    if ((from.degrees[FWD] == 0) || (to.degrees[BWD] == 0)) return false;
+    if ((from.degrees[FWD] == 0) || (to.degrees[BWD] == 0)) [[unlikely]]
+      return false;
+
+    bool pruned = false;
 
     for (int i = 0; i < NUM_WORDS; ++i) {
-      if ((to.bits[FWD][i] & from.bits[FWD][i]) != to.bits[FWD][i])
-        return false;
+      pruned |= ((to.bits[FWD][i] & from.bits[FWD][i]) != to.bits[FWD][i]);
     }
 
+    if (pruned) [[unlikely]]
+      return false;
+
     for (int i = 0; i < NUM_WORDS; ++i) {
-      if ((from.bits[BWD][i] & to.bits[BWD][i]) != from.bits[BWD][i])
-        return false;
+      pruned |= ((from.bits[BWD][i] & to.bits[BWD][i]) != from.bits[BWD][i]);
     }
+    if (pruned) [[unlikely]]
+      return false;
 
     for (int i = 0; i < from.degrees[FWD]; ++i) {
       const Vertex w = from.edges[FWD][i];
@@ -356,7 +362,6 @@ struct BFL {
         const Vertex w = labels[u].edges[FWD][i];
         if (!labels[w].isMarked(timer)) {
           labels[w].mark(timer);
-
           stack[index++] = w;
         }
       }

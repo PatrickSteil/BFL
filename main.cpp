@@ -9,7 +9,7 @@
 #include "cmdparser.hpp"
 #include "graph.h"
 
-void configure_parser(cli::Parser &parser) {
+void configure_parser(cli::Parser& parser) {
   parser.set_required<std::string>("i", "input_graph", "Input graph file.");
   parser.set_optional<bool>("s", "show_stats", false,
                             "Show statistics about the computed hub labels.");
@@ -20,7 +20,7 @@ void configure_parser(cli::Parser &parser) {
       "Output filename to write labels and times into.");
 };
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   cli::Parser parser(argc, argv, "BFL - Bloom Filter Labeling.");
   configure_parser(parser);
   parser.run_and_exit_if_error();
@@ -30,7 +30,6 @@ int main(int argc, char *argv[]) {
   const bool showstats = parser.get<bool>("s");
   const bool benchmark = parser.get<bool>("b");
 
-  // Graph fwdGraph = Graph::readFromEdgeListFile(inputFileName);
   Graph fwdGraph;
   fwdGraph.readDimacs(inputFileName);
 
@@ -47,11 +46,12 @@ int main(int argc, char *argv[]) {
   if (outputFileName != "") bfl.exportData(outputFileName);
 
   if (benchmark) {
-    // bfl.run_dfs_benchmark(10000);
-    // bfl.run_bfs_benchmark(10000);
-    // bfl.run_label_bfs_benchmark(10000);
-    bfl.run_label_dfs_benchmark_rec(10000);
-    bfl.run_label_dfs_benchmark_iter(10000);
+    const std::size_t numQueries = 10000;
+    // bfl.run_dfs_benchmark(numQueries);
+    // bfl.run_bfs_benchmark(numQueries);
+    // bfl.run_label_bfs_benchmark(numQueries);
+    bfl.run_label_dfs_benchmark_rec(numQueries);
+    bfl.run_label_dfs_benchmark_iter(numQueries);
   }
 
   return 0;

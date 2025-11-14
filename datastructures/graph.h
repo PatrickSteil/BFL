@@ -40,7 +40,7 @@ struct DynGraph {
 
   std::size_t numEdges() const {
     return std::accumulate(edges.begin(), edges.end(), std::size_t(0),
-                           [](std::size_t sum, const std::vector<Vertex> &v) {
+                           [](std::size_t sum, const std::vector<Vertex>& v) {
                              return sum + v.size();
                            });
   }
@@ -57,7 +57,7 @@ struct DynGraph {
   }
 
   template <typename FUNC>
-  void relaxEdges(const Vertex v, const FUNC &&function) const {
+  void relaxEdges(const Vertex v, const FUNC&& function) const {
     for (auto w : edges[v]) {
       if (function(v, w)) break;
     }
@@ -72,7 +72,7 @@ struct DynGraph {
     std::size_t sumDegree = 0;
     std::size_t isolatedCount = 0;
 
-    for (const auto &neighbors : edges) {
+    for (const auto& neighbors : edges) {
       std::size_t deg = neighbors.size();
       minDegree = std::min(minDegree, deg);
       maxDegree = std::max(maxDegree, deg);
@@ -130,7 +130,7 @@ struct DynGraph {
     return order;
   }
 
-  static DynGraph readFromDimacs(std::istream &in) {
+  static DynGraph readFromDimacs(std::istream& in) {
     std::string line;
     DynGraph g;
 
@@ -165,14 +165,14 @@ struct DynGraph {
     return g;
   }
 
-  static DynGraph readFromDimacsFile(const std::string &filename) {
+  static DynGraph readFromDimacsFile(const std::string& filename) {
     StatusLog log("Reading graph from dimacs");
     std::ifstream in(filename);
     if (!in) throw std::runtime_error("Cannot open file: " + filename);
     return readFromDimacs(in);
   }
 
-  static DynGraph readFromEdgeList(std::istream &in) {
+  static DynGraph readFromEdgeList(std::istream& in) {
     std::string line;
     std::vector<std::pair<Vertex, Vertex>> edges;
 
@@ -194,13 +194,13 @@ struct DynGraph {
 
     DynGraph g(maxV + 1);
 
-    for (const auto &e : edges) {
+    for (const auto& e : edges) {
       g.addEdge(e.first, e.second);
     }
     return g;
   }
 
-  static DynGraph readFromEdgeListFile(const std::string &filename) {
+  static DynGraph readFromEdgeListFile(const std::string& filename) {
     StatusLog log("Reading graph from edge list");
     std::ifstream in(filename);
     if (!in) throw std::runtime_error("Cannot open file: " + filename);
@@ -220,7 +220,7 @@ struct DynGraph {
 };
 
 std::vector<std::pair<Vertex, Vertex>> getTopologicallySortedEdges(
-    const DynGraph &g) {
+    const DynGraph& g) {
   StatusLog log("Compute Topo-Ordering and sort edges");
   std::vector<std::pair<Vertex, Vertex>> sortedEdges;
   sortedEdges.reserve(g.numEdges());
@@ -238,8 +238,8 @@ std::vector<std::pair<Vertex, Vertex>> getTopologicallySortedEdges(
     }
   }
   std::sort(sortedEdges.begin(), sortedEdges.end(),
-            [&position](const std::pair<Vertex, Vertex> &left,
-                        const std::pair<Vertex, Vertex> &right) {
+            [&position](const std::pair<Vertex, Vertex>& left,
+                        const std::pair<Vertex, Vertex>& right) {
               return std::tie(position[left.first], position[left.second]) <
                      std::tie(position[right.first], position[right.second]);
             });
@@ -254,7 +254,7 @@ struct Edge {
   Edge() = default;
   Edge(Vertex from, Vertex to) : from(from), to(to) {}
 
-  auto operator<=>(const Edge &other) const = default;
+  auto operator<=>(const Edge& other) const = default;
 };
 
 struct Graph {
@@ -265,14 +265,14 @@ struct Graph {
   Graph(std::size_t numVertices, std::size_t numEdges)
       : adjArray(numVertices + 1, 0), toVertex(numEdges, 0) {};
 
-  Graph(const Graph &other)
+  Graph(const Graph& other)
       : adjArray(other.adjArray), toVertex(other.toVertex) {};
 
-  Graph(Graph &&other) noexcept
+  Graph(Graph&& other) noexcept
       : adjArray(std::move(other.adjArray)),
         toVertex(std::move(other.toVertex)) {}
 
-  Graph &operator=(Graph &&other) noexcept {
+  Graph& operator=(Graph&& other) noexcept {
     if (this != &other) {
       adjArray = std::move(other.adjArray);
       toVertex = std::move(other.toVertex);
@@ -300,7 +300,7 @@ struct Graph {
   }
 
   template <typename FUNC>
-  void doForAllEdges(FUNC &&function) const {
+  void doForAllEdges(FUNC&& function) const {
     for (Vertex v = 0; v < numVertices(); ++v) {
       for (std::size_t i = beginEdge(v); i < endEdge(v); ++i) {
         if (i + 4 < endEdge(v)) {
@@ -313,7 +313,7 @@ struct Graph {
   }
 
   template <typename FUNC>
-  void relaxEdges(const Vertex from, FUNC &&function) const {
+  void relaxEdges(const Vertex from, FUNC&& function) const {
     for (std::size_t i = beginEdge(from); i < endEdge(from); ++i) {
       if (i + 4 < endEdge(from)) {
         PREFETCH(&toVertex[i + 4]);
@@ -345,7 +345,7 @@ struct Graph {
     toVertex.clear();
   }
 
-  void sortByRank(const std::vector<std::size_t> &rank) {
+  void sortByRank(const std::vector<std::size_t>& rank) {
     for (Vertex v = 0; v < adjArray.size() - 1; ++v) {
       std::sort(toVertex.begin() + adjArray[v],
                 toVertex.begin() + adjArray[v + 1],
@@ -355,7 +355,7 @@ struct Graph {
     }
   }
 
-  void buildFromEdgeList(std::vector<std::pair<Vertex, Vertex>> &edgeList,
+  void buildFromEdgeList(std::vector<std::pair<Vertex, Vertex>>& edgeList,
                          std::size_t numVertices) {
     std::vector<std::size_t> newAdjArray(numVertices + 1, 0);
     std::vector<Vertex> newToVertex;
@@ -363,12 +363,12 @@ struct Graph {
     sortAndRemoveDuplicates(edgeList);
 
     assert(std::is_sorted(edgeList.begin(), edgeList.end(),
-                          [](const auto &a, const auto &b) {
+                          [](const auto& a, const auto& b) {
                             return (a.first < b.first) ||
                                    (a.first == b.first && a.second < b.second);
                           }));
 
-    for (const auto &[u, v] : edgeList) {
+    for (const auto& [u, v] : edgeList) {
       assert(u < newAdjArray.size());
       assert(v < newAdjArray.size());
       assert(u < numVertices);
@@ -385,7 +385,7 @@ struct Graph {
 
     newToVertex.resize(edgeList.size());
     std::vector<std::size_t> offset = newAdjArray;
-    for (const auto &[u, v] : edgeList) {
+    for (const auto& [u, v] : edgeList) {
       assert(u < offset.size());
       assert(offset[u] < newAdjArray[u + 1]);
       assert(offset[u] < newToVertex.size());
@@ -396,7 +396,7 @@ struct Graph {
     toVertex = std::move(newToVertex);
   }
 
-  void readFromEdgeList(const std::string &fileName) {
+  void readFromEdgeList(const std::string& fileName) {
     clear();
 
     std::ifstream file(fileName);
@@ -421,7 +421,7 @@ struct Graph {
     buildFromEdgeList(edges, maxV);
   }
 
-  void readDimacs(const std::string &fileName) {
+  void readDimacs(const std::string& fileName) {
     StatusLog log("Reading graph from dimacs");
     clear();
 
@@ -459,12 +459,12 @@ struct Graph {
 
     file.close();
     std::sort(edges.begin(), edges.end(),
-              [](const auto &left, const auto &right) {
+              [](const auto& left, const auto& right) {
                 return std::tie(left.first, left.second) <
                        std::tie(right.first, right.second);
               });
 
-    for (const auto &[u, v] : edges) {
+    for (const auto& [u, v] : edges) {
       ++adjArray[u + 1];
     }
 
@@ -477,12 +477,12 @@ struct Graph {
     toVertex.resize(edges.size());
     std::vector<std::size_t> offset = adjArray;
 
-    for (const auto &[u, v] : edges) {
+    for (const auto& [u, v] : edges) {
       toVertex[offset[u]++] = v;
     }
   }
 
-  void toDimacs(const std::string &fileName) const {
+  void toDimacs(const std::string& fileName) const {
     std::ofstream file(fileName);
     if (!file.is_open()) {
       throw std::runtime_error("Cannot open file: " + fileName);
@@ -499,7 +499,7 @@ struct Graph {
     file.close();
   }
 
-  void readSnap(const std::string &fileName) {
+  void readSnap(const std::string& fileName) {
     StatusLog log("Reading graph from .snap format");
     clear();
 
@@ -532,7 +532,7 @@ struct Graph {
     adjArray.resize(maxVertex + 2, 0);
 
     std::sort(edges.begin(), edges.end(),
-              [](const auto &left, const auto &right) {
+              [](const auto& left, const auto& right) {
                 return std::tie(left.first, left.second) <
                        std::tie(right.first, right.second);
               });
@@ -540,7 +540,7 @@ struct Graph {
     auto it = std::unique(edges.begin(), edges.end());
     edges.erase(it, edges.end());
 
-    for (const auto &[u, v] : edges) {
+    for (const auto& [u, v] : edges) {
       ++adjArray[u + 1];
     }
 
@@ -553,12 +553,12 @@ struct Graph {
     toVertex.resize(edges.size());
     std::vector<std::size_t> offset = adjArray;
 
-    for (const auto &[u, v] : edges) {
+    for (const auto& [u, v] : edges) {
       toVertex[offset[u]++] = v;
     }
   }
 
-  bool rankIsPermutation(const std::vector<std::size_t> &rank) {
+  bool rankIsPermutation(const std::vector<std::size_t>& rank) {
     const std::size_t n = rank.size();
     std::vector<bool> seen(n, false);
     for (std::size_t i = 0; i < n; ++i) {
@@ -571,7 +571,7 @@ struct Graph {
     return std::all_of(seen.begin(), seen.end(), [](bool val) { return val; });
   }
 
-  void reorderByRank(const std::vector<std::size_t> &rank) {
+  void reorderByRank(const std::vector<std::size_t>& rank) {
     assert(rankIsPermutation(rank));
     assert(rank.size() == numVertices());
 
@@ -674,7 +674,7 @@ struct Graph {
   }
 
   template <typename FUNC>
-  void removeEdges(const FUNC &&predicate) {
+  void removeEdges(const FUNC&& predicate) {
     std::vector<Vertex> newToVertex;
     std::vector<std::size_t> newAdjArray(numVertices() + 1, 0);
 
@@ -699,8 +699,8 @@ struct Graph {
   }
 
   std::vector<Vertex> removeVertices(
-      const std::vector<std::uint8_t> &partition,
-      const std::vector<Vertex> &representation) {
+      const std::vector<std::uint8_t>& partition,
+      const std::vector<Vertex>& representation) {
     assert(partition.size() == numVertices());
     assert(representation.size() == numVertices());
 

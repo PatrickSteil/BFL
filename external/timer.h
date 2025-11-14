@@ -5,39 +5,57 @@
 
 #pragma once
 
-#include <sys/time.h>
+#include <chrono>
 
 class Timer {
  public:
-  Timer() : firstTime(0), secondTime(0) {}
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = Clock::time_point;
 
-  inline void start() noexcept { firstTime = timestamp(); }
+  Timer() : running(false) {}
 
-  inline void restart() noexcept { firstTime = timestamp(); }
+  inline void start() noexcept {
+    startTime = Clock::now();
+    running = true;
+  }
 
-  inline void stop() noexcept { secondTime = timestamp(); }
+  inline void restart() noexcept { start(); }
 
-  inline void reset() noexcept {
-    firstTime = 0;
-    secondTime = 0;
+  inline void stop() noexcept {
+    endTime = Clock::now();
+    running = false;
+  }
+
+  inline void reset() noexcept { running = false; }
+
+  inline double elapsedNanoseconds() const noexcept {
+    return duration<std::chrono::nanoseconds>();
   }
 
   inline double elapsedMicroseconds() const noexcept {
-    return secondTime - firstTime;
+    return duration<std::chrono::microseconds>();
   }
 
   inline double elapsedMilliseconds() const noexcept {
-    return (secondTime - firstTime) / 1000.0;
+    return duration<std::chrono::milliseconds>();
+  }
+
+  inline double elapsedSeconds() const noexcept {
+    return duration<std::chrono::duration<double>>();
   }
 
  private:
-  inline static double timestamp() noexcept {
-    timeval tp;
-    gettimeofday(&tp, nullptr);
-    double mus = static_cast<double>(tp.tv_usec);
-    return (tp.tv_sec * 1000000.0) + mus;
+  template <typename Dur>
+  inline double duration() const noexcept {
+    if (running) {
+      return std::chrono::duration_cast<Dur>(Clock::now() - startTime).count();
+    } else {
+      return std::chrono::duration_cast<Dur>(endTime - startTime).count();
+    }
   }
 
  private:
-  double firstTime, secondTime;
+  TimePoint startTime{};
+  TimePoint endTime{};
+  bool running;
 };

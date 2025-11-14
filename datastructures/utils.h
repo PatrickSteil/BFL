@@ -36,7 +36,7 @@ inline int branchlessConditional(const bool predicate, const int ifTrue,
 }
 
 template <typename FUNC>
-void parallelFor(std::size_t start, std::size_t end, FUNC &&func,
+void parallelFor(std::size_t start, std::size_t end, FUNC&& func,
                  std::size_t numThreads = std::thread::hardware_concurrency()) {
   std::vector<std::thread> threads;
   std::size_t chunkSize = (end - start + numThreads - 1) / numThreads;
@@ -54,20 +54,20 @@ void parallelFor(std::size_t start, std::size_t end, FUNC &&func,
     });
   }
 
-  for (auto &thread : threads) {
+  for (auto& thread : threads) {
     thread.join();
   }
 }
 
 template <typename T>
-void sortAndRemoveDuplicates(std::vector<T> &vec) {
+void sortAndRemoveDuplicates(std::vector<T>& vec) {
   std::stable_sort(vec.begin(), vec.end());
   vec.erase(std::unique(vec.begin(), vec.end()), vec.end());
 }
 
 template <typename T, typename Compare>
-std::vector<std::size_t> sort_permutation(const std::vector<T> &vec,
-                                          const Compare &&compare) {
+std::vector<std::size_t> sort_permutation(const std::vector<T>& vec,
+                                          const Compare&& compare) {
   std::vector<std::size_t> p(vec.size());
   std::iota(p.begin(), p.end(), 0);
   std::sort(p.begin(), p.end(), [&](std::size_t i, std::size_t j) {
@@ -77,8 +77,8 @@ std::vector<std::size_t> sort_permutation(const std::vector<T> &vec,
 }
 
 template <typename T>
-std::vector<T> apply_permutation(const std::vector<T> &vec,
-                                 const std::vector<std::size_t> &p) {
+std::vector<T> apply_permutation(const std::vector<T>& vec,
+                                 const std::vector<std::size_t>& p) {
   std::vector<T> sorted_vec(vec.size());
   std::transform(p.begin(), p.end(), sorted_vec.begin(),
                  [&](std::size_t i) { return vec[i]; });
@@ -86,8 +86,8 @@ std::vector<T> apply_permutation(const std::vector<T> &vec,
 }
 
 template <typename T>
-void apply_permutation_in_place(std::vector<T> &vec,
-                                const std::vector<std::size_t> &p) {
+void apply_permutation_in_place(std::vector<T>& vec,
+                                const std::vector<std::size_t>& p) {
   std::vector<bool> done(vec.size());
   for (std::size_t i = 0; i < vec.size(); ++i) {
     if (done[i]) {
@@ -106,21 +106,21 @@ void apply_permutation_in_place(std::vector<T> &vec,
 }
 
 template <std::size_t N>
-void *getUnderlyingPointer(std::bitset<N> &bs) {
-  return reinterpret_cast<void *>(&bs);
+void* getUnderlyingPointer(std::bitset<N>& bs) {
+  return reinterpret_cast<void*>(&bs);
 }
 
 template <std::size_t N>
-std::size_t findFirstOne(std::bitset<N> &left, std::bitset<N> &right) {
+std::size_t findFirstOne(std::bitset<N>& left, std::bitset<N>& right) {
   static_assert(N % 64 == 0, "Bitset size must be a multiple of 64");
   constexpr std::size_t chunkSize = 64;
   constexpr std::size_t numChunks = N / chunkSize;
 
-  void *ptrLeft = getUnderlyingPointer(left);
-  void *ptrRight = getUnderlyingPointer(right);
+  void* ptrLeft = getUnderlyingPointer(left);
+  void* ptrRight = getUnderlyingPointer(right);
 
-  uint64_t *chunksLeft = reinterpret_cast<uint64_t *>(ptrLeft);
-  uint64_t *chunksRight = reinterpret_cast<uint64_t *>(ptrRight);
+  uint64_t* chunksLeft = reinterpret_cast<uint64_t*>(ptrLeft);
+  uint64_t* chunksRight = reinterpret_cast<uint64_t*>(ptrRight);
 
 #pragma GCC unroll(4)
   for (std::size_t i = 0; i < numChunks; ++i) {
@@ -222,7 +222,7 @@ std::vector<std::pair<VALUE, VALUE>> generateRandomQueries(int numQueries,
 }
 
 template <typename T>
-bool fetch_max(std::atomic<T> &atomicValue, T newValue) {
+bool fetch_max(std::atomic<T>& atomicValue, T newValue) {
   T oldValue = atomicValue.load();
   while (newValue > oldValue) {
     if (atomicValue.compare_exchange_weak(oldValue, newValue)) {
@@ -233,7 +233,7 @@ bool fetch_max(std::atomic<T> &atomicValue, T newValue) {
 }
 
 template <typename T>
-bool fetch_min(std::atomic<T> &atomicValue, T newValue) {
+bool fetch_min(std::atomic<T>& atomicValue, T newValue) {
   T oldValue = atomicValue.load();
   while (newValue < oldValue) {
     if (atomicValue.compare_exchange_weak(oldValue, newValue)) {
@@ -244,7 +244,7 @@ bool fetch_min(std::atomic<T> &atomicValue, T newValue) {
 }
 
 template <typename T>
-bool intersect(const std::vector<T> &A, const std::vector<T> &B) {
+bool intersect(const std::vector<T>& A, const std::vector<T>& B) {
   assert(std::is_sorted(A.begin(), A.end()));
   assert(std::is_sorted(B.begin(), B.end()));
 
@@ -326,7 +326,7 @@ bool intersect_delta(Iterator A_begin, Iterator A_end, Iterator B_begin,
 }
 
 template <typename FUNC>
-double timeExecution(FUNC &&func) {
+double timeExecution(FUNC&& func) {
   auto start = std::chrono::high_resolution_clock::now();
   func();
   auto end = std::chrono::high_resolution_clock::now();
