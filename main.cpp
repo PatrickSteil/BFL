@@ -8,6 +8,7 @@
 #include "bfl.h"
 #include "cmdparser.hpp"
 #include "graph.h"
+#include "stop_paths.h"
 
 void configure_parser(cli::Parser& parser) {
   parser.set_required<std::string>("i", "input_graph", "Input graph file.");
@@ -18,6 +19,7 @@ void configure_parser(cli::Parser& parser) {
   parser.set_optional<std::string>(
       "o", "output_file", "",
       "Output filename to write labels and times into.");
+  parser.set_optional<std::string>("p", "path_file", "", "Path input file.");
 };
 
 int main(int argc, char* argv[]) {
@@ -29,6 +31,8 @@ int main(int argc, char* argv[]) {
   const std::string outputFileName = parser.get<std::string>("o");
   const bool showstats = parser.get<bool>("s");
   const bool benchmark = parser.get<bool>("b");
+  const std::string pathFileName = parser.get<std::string>("p");
+  const std::size_t numQueries = 10000;
 
   Graph fwdGraph;
   fwdGraph.readDimacs(inputFileName);
@@ -37,7 +41,7 @@ int main(int argc, char* argv[]) {
 
   Graph bwdGraph = fwdGraph.reverseGraph();
 
-  BFL<6> bfl(fwdGraph, bwdGraph);
+  BFL<8> bfl(fwdGraph, bwdGraph);
 
   bfl.buildIndex();
 
@@ -46,12 +50,21 @@ int main(int argc, char* argv[]) {
   if (outputFileName != "") bfl.exportData(outputFileName);
 
   if (benchmark) {
-    const std::size_t numQueries = 10000;
     // bfl.run_dfs_benchmark(numQueries);
     // bfl.run_bfs_benchmark(numQueries);
     // bfl.run_label_bfs_benchmark(numQueries);
     bfl.run_label_dfs_benchmark_rec(numQueries);
     bfl.run_label_dfs_benchmark_iter(numQueries);
+  }
+
+  if (pathFileName != "") {
+    Paths paths;
+    paths.loadPathsFromFile(pathFileName);
+    if (showstats) paths.showStats();
+
+    if (benchmark) {
+      paths.run_benchmark("Path Queries", bfl, numQueries);
+    }
   }
 
   return 0;

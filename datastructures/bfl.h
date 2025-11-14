@@ -83,13 +83,13 @@ struct BFL {
     std::size_t totalMemory = labelsMemory + timesMemory;
 
     std::cout << "Memory Consumption:\n";
-    std::cout << "  Labels memory: "
+    std::cout << "  Labels memory:                 "
               << static_cast<double>(labelsMemory) / (1024.0 * 1024.0)
               << " mb\n";
     std::cout << "  Discovery/Finish times memory: "
               << static_cast<double>(timesMemory) / (1024.0 * 1024.0)
               << " mb\n";
-    std::cout << "  Total memory: "
+    std::cout << "  Total memory:                  "
               << static_cast<double>(totalMemory) / (1024.0 * 1024.0)
               << " mb\n";
   }
@@ -108,7 +108,7 @@ struct BFL {
   void resetTimer() {
     ++timer;
 
-    if (timer == 0) {
+    if (timer == 0) [[unlikely]] {
       timer = 1;
 
       for (auto& n : labels) n.mark(0);
@@ -147,13 +147,15 @@ struct BFL {
 
     resetTimer();
     for (std::size_t v = 0; v < labels.size(); ++v) {
-      if (labels[v].isMarked(timer)) continue;
+      if (labels[v].isMarked(timer)) [[likely]]
+        continue;
       compute(v, FWD);
     }
 
     resetTimer();
     for (std::size_t v = 0; v < labels.size(); ++v) {
-      if (labels[v].isMarked(timer)) continue;
+      if (labels[v].isMarked(timer)) [[likely]]
+        continue;
       compute(v, BWD);
     }
   }
@@ -262,13 +264,14 @@ struct BFL {
         numberOfQueries);
   }
 
+  template <bool RESET_TIMER = true>
   bool dfsRecPruned(const Vertex from, const Vertex to) {
     assert(from < labels.size());
     assert(to < labels.size());
 
     if (from == to) [[unlikely]]
       return true;
-    resetTimer();
+    if constexpr (RESET_TIMER) resetTimer();
     labels[from].mark(timer);
 
     return queryRec(labels[from], labels[to]);
@@ -312,6 +315,7 @@ struct BFL {
     return false;
   }
 
+  template <bool RESET_TIMER = true>
   bool dfsIterativePruned(const Vertex from, const Vertex to) {
     assert(from < labels.size());
     assert(to < labels.size());
@@ -319,7 +323,7 @@ struct BFL {
     if (from == to) [[unlikely]]
       return true;
 
-    resetTimer();
+    if constexpr (RESET_TIMER) resetTimer();
     labels[from].mark(timer);
 
     index = 0;
